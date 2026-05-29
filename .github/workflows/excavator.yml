@@ -1,0 +1,55 @@
+  name: Update manifest
+                                                                                                                                                                                       on:
+    workflow_dispatch:                                                                                                                                                               
+      inputs:                                                                                                                                                                        
+        version:
+          description: 'Version to set (leave empty to fetch from PyPI)'
+          required: false                                                                                                                                                                      type: string
+    schedule:                                                                                                                                                                        
+      - cron: '0 8 * * *'                                                                                                                                                            
+
+  jobs:                                                                                                                                                                                  update:
+      runs-on: ubuntu-latest                                                                                                                                                         
+      permissions:                                                                                                                                                                   
+        contents: write
+
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Resolve version                                                                                                                                                                id: version
+          run: |                                                                                                                                                                     
+            if [ -n "${{ inputs.version }}" ]; then                                                                                                                                  
+              echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            else                                                                                                                                                                     
+              VERSION=$(curl -s https://pypi.org/pypi/cielab-gamut-tools/json | \
+                python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")                                                                                        
+              echo "value=$VERSION" >> "$GITHUB_OUTPUT"                                                                                                                              
+            fi
+                                                                                                                                                                                     
+        - name: Update manifest if version changed                                                                                                                                   
+          id: update
+          run: |                                                                                                                                                                     
+            MANIFEST=bucket/cielab-gamut-tools.json
+            CURRENT=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['version'])")                                                                                      
+            NEW="${{ steps.version.outputs.value }}"                                                                                                                                 
+            if [ "$CURRENT" = "$NEW" ]; then                                                                                                                                         
+              echo "No change ($CURRENT)" && echo "changed=false" >> "$GITHUB_OUTPUT"
+            else                                                                                                                                                                     
+              python3 -c "                                                                                                                                                           
+            import json                                                                                                                                                              
+            with open('$MANIFEST') as f: m = json.load(f)                                                                                                                            
+            m['version'] = '$NEW'                                                                                                                                                    
+            with open('$MANIFEST', 'w') as f: json.dump(m, f, indent=4); f.write('\n')
+            "                                                                                                                                                                        
+              echo "changed=true" >> "$GITHUB_OUTPUT"                                                                                                                                
+              echo "version=$NEW" >> "$GITHUB_OUTPUT"
+            fi                                                                                                                                                                       
+                                                                                                                                                                                     
+        - name: Commit and push
+          if: steps.update.outputs.changed == 'true'
+          run: |                                                                                                                                                                     
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"                                                                                                     
+            git add bucket/cielab-gamut-tools.json                                                                                                                                   
+            git commit -m "update cielab-gamut-tools to ${{ steps.update.outputs.version }}"                                                                                         
+            git push
