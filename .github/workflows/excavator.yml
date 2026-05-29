@@ -4,7 +4,8 @@
       inputs:                                                                                                                                                                        
         version:
           description: 'Version to set (leave empty to fetch from PyPI)'
-          required: false                                                                                                                                                                      type: string
+          required: false 
+          type: string
     schedule:                                                                                                                                                                        
       - cron: '0 8 * * *'                                                                                                                                                            
 
