@@ -1,5 +1,4 @@
-  name: Update manifest
-                                                                                                                                                                                       on:
+  name: Update manifest                                                                                                                                                                                on:
     workflow_dispatch:                                                                                                                                                               
       inputs:                                                                                                                                                                        
         version:
